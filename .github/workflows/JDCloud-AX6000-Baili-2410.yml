@@ -35,7 +35,7 @@ env:
   OPENWRT_NAME: padavanonly
   UPLOAD_TAG_NAME: jdcloud_re-cp-03
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-24.10
-  REPO_BRANCH: 2410
+  REPO_BRANCH: openwrt-24.10-6.6
   FEEDS_CONF: JDCloud-AX6000-Baili-2410/feeds.conf.default
   CONFIG_FILE: JDCloud-AX6000-Baili-2410/.config
   DIY_P1_SH: JDCloud-AX6000-Baili-2410/diy-part1.sh
@@ -198,7 +198,7 @@ jobs:
 
     - name: 生成固件Release标签
       id: tag
-      if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+      if: steps.compile.outputs.status == 'success' && env.UPLOAD_RELEASE == 'true' && !cancelled()
       run: |
         touch release.txt
         echo "- 使用源码：${{ env.REPO_URL }}" >> release.txt
