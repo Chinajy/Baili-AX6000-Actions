@@ -10,17 +10,10 @@
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 # 适配 ImmortalWrt 24.10 / 内核 6.6 / JDCloud RE-CP-03 (京东云百里AX6000)
 
-##-----------------注入自定义DSA DTS------------------
-# 将自定义DTS复制到6.6内核的filogic设备树目录
-DTS_SRC="$GITHUB_WORKSPACE/JDCloud-AX6000-Baili-2410/mt7986a-dsa-jdcloud-re-cp-03.dts"
-DTS_DIR="target/linux/mediatek/files-6.6/arch/arm64/boot/dts/mediatek"
-if [ -f "$DTS_SRC" ]; then
-    mkdir -p "$DTS_DIR"
-    cp -f "$DTS_SRC" "$DTS_DIR/mt7986a-jdcloud-re-cp-03.dts"
-    echo "Injected custom DSA DTS for JDCloud RE-CP-03"
-else
-    echo "WARNING: Custom DTS file not found at $DTS_SRC"
-fi
+##-----------------DTS说明------------------
+# 源码分支 openwrt-24.10-6.6 已内置 JDCloud RE-CP-03 的 DSA DTS
+# 路径: target/linux/mediatek/dts/mt7986a-jdcloud-re-cp-03.dts
+# 无需额外注入自定义DTS
 
 ##-----------------删除重复包------------------
 rm -rf feeds/packages/net/open-app-filter
