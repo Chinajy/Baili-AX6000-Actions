@@ -10,9 +10,9 @@
 # DIY PART1：拉取第三方插件源码，适配 ImmortalWrt 24.10 / 内核 6.6
 # 适配设备：京东云百里 AX6000 (RE-CP-03)
 #
-# 注意：SmartDNS 的递归依赖已修复
-# 原因：smartdns-ui 依赖 smartdns，而 smartdns 的 PKG_CONFIG_DEPENDS 又依赖 smartdns-ui
-# 修复方案：只编译 smartdns + luci-app-smartdns，不编译 smartdns-ui
+# 注意：SmartDNS 使用 feeds 中的版本，不在此处克隆
+# 原因：pymumu/luci-app-smartdns 仓库结构与 ImmortalWrt 24.10 不兼容
+# feeds 中已包含 smartdns + luci-app-smartdns，直接使用即可
 
 echo "=== diy-part1.sh start ==="
 
@@ -20,43 +20,39 @@ echo "=== diy-part1.sh start ==="
 rm -rf package/*tmp*
 
 # ============ 第三方插件源码拉取 ============
-# 每个 git clone 都添加了错误处理，即使某个插件拉取失败也不会中断整个编译
 
 # 1. AdGuardHome 广告拦截
 echo "=== Cloning AdGuardHome ==="
-git clone --depth 1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome 2>/dev/null || echo "WARN: AdGuardHome clone failed (will not be built)"
+git clone --depth 1 https://github.com/rufengsuixing/luci-app-adguardhome.git package/luci-app-adguardhome
 
 # 2. OpenClash 科学上网
 echo "=== Cloning OpenClash ==="
-git clone --depth 1 -b master https://github.com/vernesong/OpenClash.git package/luci-app-openclash 2>/dev/null || echo "WARN: OpenClash clone failed (will not be built)"
+git clone --depth 1 -b master https://github.com/vernesong/OpenClash.git package/luci-app-openclash
 
 # 3. DiskMan 磁盘管理
 echo "=== Cloning DiskMan ==="
-git clone --depth 1 https://github.com/lisaac/luci-app-diskman.git package/luci-app-diskman 2>/dev/null || echo "WARN: DiskMan clone failed (will not be built)"
+git clone --depth 1 https://github.com/lisaac/luci-app-diskman.git package/luci-app-diskman
 
 # 4. AdvancedPlus 文件管理
 echo "=== Cloning AdvancedPlus ==="
-git clone --depth 1 https://github.com/sirpdboy/luci-app-advancedplus.git package/luci-app-advancedplus 2>/dev/null || echo "WARN: AdvancedPlus clone failed (will not be built)"
+git clone --depth 1 https://github.com/sirpdboy/luci-app-advancedplus.git package/luci-app-advancedplus
 
 # 5. Lucky 端口转发
 echo "=== Cloning Lucky ==="
-git clone --depth 1 https://github.com/gdy666/luci-app-lucky.git package/luci-app-lucky 2>/dev/null || echo "WARN: Lucky clone failed (will not be built)"
+git clone --depth 1 https://github.com/gdy666/luci-app-lucky.git package/luci-app-lucky
 
 # 6. EasyTier 异地组网
 echo "=== Cloning EasyTier ==="
-git clone --depth 1 https://github.com/EasyTier/luci-app-easytier.git package/luci-app-easytier 2>/dev/null || echo "WARN: EasyTier clone failed (will not be built)"
+git clone --depth 1 https://github.com/EasyTier/luci-app-easytier.git package/luci-app-easytier
 
 # 7. Argon 主题
 echo "=== Cloning Argon Theme ==="
-git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon 2>/dev/null || echo "WARN: Argon Theme clone failed (will not be built)"
-git clone --depth 1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config 2>/dev/null || echo "WARN: Argon Config clone failed (will not be built)"
+git clone --depth 1 https://github.com/jerrykuku/luci-theme-argon.git package/luci-theme-argon
+git clone --depth 1 https://github.com/jerrykuku/luci-app-argon-config.git package/luci-app-argon-config
 
-# 8. SmartDNS（只拉取 luci-app-smartdns，smartdns 本体在 feeds 中）
-echo "=== Cloning SmartDNS LuCI ==="
-git clone --depth 1 https://github.com/pymumu/luci-app-smartdns.git package/luci-app-smartdns 2>/dev/null || echo "WARN: SmartDNS LuCI clone failed (will use feeds version)"
-
-# 9. SmartDNS 官方源码（可选，如果需要最新版本）
-# echo "=== Cloning SmartDNS ==="
-git clone --depth 1 https://github.com/pymumu/smartdns.git package/smartdns 2>/dev/null || echo "WARN: SmartDNS clone failed (will use feeds version)"
+# ============ SmartDNS 不克隆 ============
+# SmartDNS 使用 feeds 中的版本（feeds/packages/net/smartdns + feeds/luci/applications/luci-app-smartdns）
+# 不克隆 pymumu/luci-app-smartdns，因为其仓库结构（包含 package/openwrt/Makefile）
+# 与 ImmortalWrt 24.10 的 feeds 结构冲突，会导致编译失败
 
 echo "=== diy-part1.sh completed ==="
