@@ -160,7 +160,6 @@ echo "=== Step 6 completed ==="
 
 # ============ 7. 确认关键包状态 ============
 # 注意：SmartDNS 递归依赖已修复（只编译 smartdns + luci-app-smartdns，不编译 smartdns-ui）
-# automount 使用 ntfs3-mount（内核原生 ntfs3 驱动）
 
 echo "=== Step 7: Verifying essential packages ==="
 
@@ -179,8 +178,6 @@ ESSENTIAL_PACKAGES=(
     "kmod-mediatek_hnat"
     "smartdns"
     "luci-app-smartdns"
-    "automount"
-    "ntfs3-mount"
 )
 
 for pkg in "${ESSENTIAL_PACKAGES[@]}"; do
@@ -192,26 +189,6 @@ for pkg in "${ESSENTIAL_PACKAGES[@]}"; do
         echo "  ⚠ $pkg: not found in .config (may not be built)"
     fi
 done
-
-# 7.1 确认 smartdns-ui 被禁用（避免递归依赖）
-if grep -q "^CONFIG_PACKAGE_smartdns-ui=y" .config 2>/dev/null || grep -q "^CONFIG_PACKAGE_smartdns-ui=m" .config 2>/dev/null; then
-    echo "  ✗ WARNING: smartdns-ui is enabled! This will cause recursive dependency!"
-    echo "  Disabling smartdns-ui..."
-    sed -i '/^CONFIG_PACKAGE_smartdns-ui=/d' .config
-    echo "# CONFIG_PACKAGE_smartdns-ui is not set" >> .config
-else
-    echo "  ✓ smartdns-ui: disabled (recursive dependency avoided)"
-fi
-
-# 7.2 确认 ntfs-3g 被禁用（避免与 ntfs3-mount 冲突）
-if grep -q "^CONFIG_PACKAGE_ntfs-3g=y" .config 2>/dev/null || grep -q "^CONFIG_PACKAGE_ntfs-3g=m" .config 2>/dev/null; then
-    echo "  ✗ WARNING: ntfs-3g is enabled! This conflicts with ntfs3-mount!"
-    echo "  Disabling ntfs-3g..."
-    sed -i '/^CONFIG_PACKAGE_ntfs-3g=/d' .config
-    echo "# CONFIG_PACKAGE_ntfs-3g is not set" >> .config
-else
-    echo "  ✓ ntfs-3g: disabled (conflict with ntfs3-mount avoided)"
-fi
 
 echo "=== Step 7 completed ==="
 echo "=== diy-part2.sh all done! Ready to compile. ==="
