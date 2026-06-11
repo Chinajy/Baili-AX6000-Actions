@@ -16,7 +16,8 @@
 # 3. 设置 CPU 频率为 2.0GHz
 # 4. 修改默认 WiFi SSID
 # 5. 固件版本标识
-# 6. 在 .config 中确认关键包状态（SmartDNS、automount 等）
+# 6. 禁用 automount 和 ntfs3-mount（用户要求不编译 USB 自动挂载）
+# 7. 在 .config 中确认关键包状态
 
 echo "=== diy-part2.sh start ==="
 
@@ -158,10 +159,42 @@ fi
 
 echo "=== Step 6 completed ==="
 
-# ============ 7. 确认关键包状态 ============
+# ============ 7. 禁用 automount 和 ntfs3-mount ============
+# 用户要求不编译任何 USB 自动挂载相关包
+
+echo "=== Step 7: Disabling automount and ntfs3-mount ==="
+
+# 7.1 从 .config 中禁用 automount 和 ntfs3-mount
+sed -i '/^CONFIG_PACKAGE_automount=/d' .config 2>/dev/null || true
+sed -i '/^CONFIG_PACKAGE_ntfs3-mount=/d' .config 2>/dev/null || true
+echo "# CONFIG_PACKAGE_automount is not set" >> .config
+echo "# CONFIG_PACKAGE_ntfs3-mount is not set" >> .config
+
+# 7.2 物理删除 package/emortal/automount（如果存在）
+if [ -d "package/emortal/automount" ]; then
+    echo "  Removing package/emortal/automount..."
+    rm -rf package/emortal/automount
+fi
+
+# 7.3 物理删除 feeds 中的 automount 和 ntfs3-mount
+if [ -d "feeds/packages/utils/automount" ]; then
+    echo "  Removing feeds/packages/utils/automount..."
+    rm -rf feeds/packages/utils/automount
+fi
+if [ -d "feeds/packages/utils/ntfs3-mount" ]; then
+    echo "  Removing feeds/packages/utils/ntfs3-mount..."
+    rm -rf feeds/packages/utils/ntfs3-mount
+fi
+
+# 7.4 确认 ntfs-3g 不会被禁用（luci-app-diskman 需要它）
+# 不需要操作，ntfs-3g 由 luci-app-diskman 的依赖自动拉入
+
+echo "=== Step 7 completed ==="
+
+# ============ 8. 确认关键包状态 ============
 # 注意：SmartDNS 递归依赖已修复（只编译 smartdns + luci-app-smartdns，不编译 smartdns-ui）
 
-echo "=== Step 7: Verifying essential packages ==="
+echo "=== Step 8: Verifying essential packages ==="
 
 ESSENTIAL_PACKAGES=(
     "luci-app-mtwifi-cfg"
@@ -178,6 +211,7 @@ ESSENTIAL_PACKAGES=(
     "kmod-mediatek_hnat"
     "smartdns"
     "luci-app-smartdns"
+    "luci-app-diskman"
 )
 
 for pkg in "${ESSENTIAL_PACKAGES[@]}"; do
@@ -190,5 +224,5 @@ for pkg in "${ESSENTIAL_PACKAGES[@]}"; do
     fi
 done
 
-echo "=== Step 7 completed ==="
+echo "=== Step 8 completed ==="
 echo "=== diy-part2.sh all done! Ready to compile. ==="
