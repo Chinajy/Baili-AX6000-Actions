@@ -9,76 +9,9 @@
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 # DIY PART2：feeds 拉取后的自定义操作，适配 ImmortalWrt 24.10 / 内核 6.6
 # 适配设备：京东云百里 AX6000 (RE-CP-03)
-#
-# 重要：此脚本在 feeds 更新后运行，主要任务是：
-# 1. 注入自定义 DTS（京东云百里 AX6000 / RE-CP-03，DSA 交换机模式）
-# 2. 下载 OpenClash Meta 内核
-# 3. 设置 CPU 频率为 2.0GHz
-# 4. 修改默认 WiFi SSID
-# 5. 固件版本标识
-# 6. 禁用 automount 和 ntfs3-mount（用户要求不编译 USB 自动挂载）
-# 7. 在 .config 中确认关键包状态
+# 已移除：自定义DTS注入相关全部代码
 
 echo "=== diy-part2.sh start ==="
-
-# ============ 1. 注入自定义 DTS（京东云百里 AX6000 / RE-CP-03，DSA 交换机模式） ============
-# padavanonly/immortalwrt-mt798x-24.10 源码中可能已有 mt7986a-jdcloud-re-cp-03.dts
-# 但这里用我们经过验证的自定义 DTS 覆盖，确保 DSA 交换机模式和硬件配置正确
-echo "=== Step 2: Injecting custom DTS for JDCloud RE-CP-03 (DSA mode) ==="
-
-# 2.1 检查自定义 DTS 文件是否存在（从仓库复制）
-# 自定义 DTS 位于仓库根目录下 JDCloud-AX6000-Baili-2410/mt7986a-dsa-jdcloud-re-cp-03.dts
-CUSTOM_DTS="$GITHUB_WORKSPACE/JDCloud-AX6000-Baili-2410/mt7986a-dsa-jdcloud-re-cp-03.dts"
-
-# 2.2 目标路径（MediaTek 目标的 DTS 目录）
-DTS_TARGET_DIR="target/linux/mediatek/dts"
-DTS_TARGET_FILE="$DTS_TARGET_DIR/mt7986a-jdcloud-re-cp-03.dts"
-
-if [ -f "$CUSTOM_DTS" ]; then
-    echo "  Found custom DTS: $CUSTOM_DTS"
-
-    # 创建目标目录（如果不存在）
-    mkdir -p "$DTS_TARGET_DIR"
-
-    # 备份原始 DTS（如果存在）
-    if [ -f "$DTS_TARGET_FILE" ]; then
-        cp "$DTS_TARGET_FILE" "${DTS_TARGET_FILE}.bak"
-        echo "  Original DTS backed up to: ${DTS_TARGET_FILE}.bak"
-    fi
-
-    # 复制自定义 DTS 到目标位置
-    cp "$CUSTOM_DTS" "$DTS_TARGET_FILE"
-    echo "  Custom DTS copied to: $DTS_TARGET_FILE"
-
-    # 2.3 检查 Makefile 是否正确引用了目标设备
-    # 目标设备的 Makefile 应该包含对 jdcloud-re-cp-03 的定义
-    # 通常在 target/linux/mediatek/image/mt7986.mk
-    MAKEFILE_PATH="target/linux/mediatek/image/mt7986.mk"
-    if [ -f "$MAKEFILE_PATH" ]; then
-        if grep -q "jdcloud.re-cp-03\|jdcloud-re-cp-03\|RE-CP-03" "$MAKEFILE_PATH"; then
-            echo "  ✓ Device definition already exists in: $MAKEFILE_PATH"
-        else
-            echo "  ⚠ Device definition NOT found in $MAKEFILE_PATH"
-            echo "  This may be OK if the target name differs (e.g. jdcloud_re-cp-03)"
-        fi
-    else
-        echo "  ⚠ Makefile not found at: $MAKEFILE_PATH"
-    fi
-
-    echo "  DTS injection completed successfully"
-else
-    echo "  ⚠ Custom DTS file not found at: $CUSTOM_DTS"
-    echo "  Falling back to source tree's built-in DTS (if it exists)"
-    # 如果源码中已有内置的 DTS，则使用它
-    if [ -f "$DTS_TARGET_FILE" ]; then
-        echo "  Using built-in DTS from source tree"
-    else
-        echo "  ERROR: No DTS file available for JDCloud RE-CP-03!"
-        echo "  The build may fail for this device."
-    fi
-fi
-
-echo "=== Step 2 completed: DTS injection done ==="
 
 # ============ 3. OpenClash Meta 内核下载（arm64 适配 MT7986） ============
 echo "=== Step 3: Downloading OpenClash Meta core for arm64 ==="
