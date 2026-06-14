@@ -8,10 +8,28 @@
 # File name: diy-part2.sh
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 # DIY PART2：feeds 拉取后的自定义操作，适配 ImmortalWrt 24.10 / 内核 6.6
-# 适配设备：京东云百里 AX6000 (RE-CP-03)
-# 已移除：自定义DTS注入相关全部代码
+# 适配设备：京东云百里 AX6000 (RE-CP-03) | 使用仓库根目录的自定义DTS
 
 echo "=== diy-part2.sh start ==="
+
+# ============ 新增：注入自定义DTS文件（核心） ============
+echo "=== Step 2: Inject custom DTS from repo root ==="
+
+# 定义路径
+REPO_DTS="./jdcloud-re-cp-03.dts"
+SRC_DTS="target/linux/mediatek/filogic/dts/jdcloud-re-cp-03.dts"
+
+if [ -f "$REPO_DTS" ]; then
+    echo "  Found custom DTS in repo root: $REPO_DTS"
+    mkdir -p target/linux/mediatek/dts/
+    cp -f "$REPO_DTS" "$SRC_DTS"
+    echo "  Copied custom DTS to: $SRC_DTS"
+else
+    echo "  ERROR: Custom DTS file not found at $REPO_DTS"
+    exit 1
+fi
+
+echo "=== Step 2 completed: Custom DTS injected ==="
 
 # ============ 3. OpenClash Meta 内核下载（arm64 适配 MT7986） ============
 echo "=== Step 3: Downloading OpenClash Meta core for arm64 ==="
@@ -45,7 +63,6 @@ CPUINFO_PATHS=(
 
 for cpuinfo_path in "${CPUINFO_PATHS[@]}"; do
     if [ -f "$cpuinfo_path" ]; then
-        # 使用 sed 替换 mediatekm 频率为 2.0GHz
         sed -i '/"mediatek"\/\*|\"mvebu"\/\*/{n; s/.*/\tcpu_freq="2.0GHz" ;;/}' "$cpuinfo_path"
         echo "  Set CPU frequency in: $cpuinfo_path"
     fi
@@ -59,7 +76,7 @@ echo "=== Step 5: Configuring default WiFi settings ==="
 MTWIFI_SEARCH_PATHS=(
     "package/mtk/applications/mtwifi-cfg/files/mtwifi.sh"
     "feeds/luci/applications/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
-    "package/feeds/luci/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
+    "package/feeds/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
 )
 
 MTWIFI_SH_PATH=""
@@ -72,7 +89,6 @@ done
 
 if [ -n "$MTWIFI_SH_PATH" ] && [ -f "$MTWIFI_SH_PATH" ]; then
     echo "  Found mtwifi.sh at: $MTWIFI_SH_PATH"
-    # 修改默认 SSID 名称（2.4G 和 5G）
     sed -i 's/ImmortalWrt-2\.4G/Baili-2.4G/g' "$MTWIFI_SH_PATH"
     sed -i 's/ImmortalWrt-5G/Baili-5G/g' "$MTWIFI_SH_PATH"
     echo "  Default WiFi SSID modified to: Baili-2.4G / Baili-5G"
@@ -93,23 +109,17 @@ fi
 echo "=== Step 6 completed ==="
 
 # ============ 7. 禁用 automount 和 ntfs3-mount ============
-# 用户要求不编译任何 USB 自动挂载相关包
-
 echo "=== Step 7: Disabling automount and ntfs3-mount ==="
 
-# 7.1 从 .config 中禁用 automount 和 ntfs3-mount
 sed -i '/^CONFIG_PACKAGE_automount=/d' .config 2>/dev/null || true
 sed -i '/^CONFIG_PACKAGE_ntfs3-mount=/d' .config 2>/dev/null || true
 echo "# CONFIG_PACKAGE_automount is not set" >> .config
 echo "# CONFIG_PACKAGE_ntfs3-mount is not set" >> .config
 
-# 7.2 物理删除 package/emortal/automount（如果存在）
 if [ -d "package/emortal/automount" ]; then
     echo "  Removing package/emortal/automount..."
     rm -rf package/emortal/automount
 fi
-
-# 7.3 物理删除 feeds 中的 automount 和 ntfs3-mount
 if [ -d "feeds/packages/utils/automount" ]; then
     echo "  Removing feeds/packages/utils/automount..."
     rm -rf feeds/packages/utils/automount
@@ -119,14 +129,9 @@ if [ -d "feeds/packages/utils/ntfs3-mount" ]; then
     rm -rf feeds/packages/utils/ntfs3-mount
 fi
 
-# 7.4 确认 ntfs-3g 不会被禁用（luci-app-diskman 需要它）
-# 不需要操作，ntfs-3g 由 luci-app-diskman 的依赖自动拉入
-
 echo "=== Step 7 completed ==="
 
 # ============ 8. 确认关键包状态 ============
-# 注意：SmartDNS 递归依赖已修复（只编译 smartdns + luci-app-smartdns，不编译 smartdns-ui）
-
 echo "=== Step 8: Verifying essential packages ==="
 
 ESSENTIAL_PACKAGES=(
