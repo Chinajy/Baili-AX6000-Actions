@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
-//
-// JDCloud RE-CP-03 (百里AX6000) DSA DTS
-// 基于 hanwckf 已验证可用的 DSA DTS 适配 6.6 内核
-//
+/*
+ * JDCloud RE-CP-03 (AX6000)
+ * MT7986A SoC
+ * Standard OpenWrt DTS
+ */
 
 /dts-v1/;
 #include <dt-bindings/gpio/gpio.h>
@@ -20,15 +21,15 @@
 		led-failsafe = &red_led;
 		led-running = &green_led;
 		led-upgrade = &green_led;
+		serial0 = &uart0;
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n1 loglevel=8 \
-			    earlycon=uart8250,mmio32,0x11002000 \
-			    root=PARTLABEL=rootfs rootwait rootfstype=squashfs,f2fs";
+		bootargs = "root=PARTLABEL=rootfs rootwait rootfstype=squashfs,f2fs";
+		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@40000000 {
 		reg = <0 0x40000000 0 0x40000000>;
 	};
 
@@ -52,17 +53,20 @@
 		compatible = "gpio-leds";
 
 		led-0 {
-			label = "blue:status";
+			color = <LED_COLOR_ID_BLUE>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&pio 7 GPIO_ACTIVE_HIGH>;
 		};
 
 		red_led: led-1 {
-			label = "red:status";
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&pio 11 GPIO_ACTIVE_HIGH>;
 		};
 
 		green_led: led-2 {
-			label = "green:status";
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
 			gpios = <&pio 12 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -86,6 +90,69 @@
 	};
 };
 
+/* 系统基础外设启用 */
+&uart0 {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+&trng {
+	status = "okay";
+};
+
+&crypto {
+	status = "okay";
+};
+
+&infracfg {
+	status = "okay";
+};
+
+&apmixedsys {
+	status = "okay";
+};
+
+&thermal {
+	status = "okay";
+};
+
+&auxadc {
+	status = "okay";
+};
+
+&efuse {
+	status = "okay";
+};
+
+/* 无线基带 & 加速引擎 */
+&consys {
+	status = "okay";
+};
+
+&wbsys {
+	status = "okay";
+};
+
+&wed {
+	status = "okay";
+};
+
+&wed2 {
+	status = "okay";
+};
+
+&wdma {
+	status = "okay";
+};
+
+&hnat {
+	status = "okay";
+};
+
+/* 以太网 & 交换机 核心配置（已修正MAC顺序、中断参数） */
 &eth {
 	status = "okay";
 
@@ -93,6 +160,8 @@
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
 		phy-mode = "2500base-x";
+		nvmem-cells = <&macaddr_factory_24 0>;
+		nvmem-cell-names = "mac-address";
 
 		fixed-link {
 			speed = <2500>;
@@ -105,15 +174,9 @@
 		compatible = "mediatek,eth-mac";
 		reg = <1>;
 		phy-mode = "2500base-x";
-
-		ext-phy-reg = <6>;
-		ext-phy-reset-gpios = <&pio 6 0>;
-
-		fixed-link {
-			speed = <2500>;
-			full-duplex;
-			pause;
-		};
+		phy-handle = <&phy6>;
+		nvmem-cells = <&macaddr_factory_2a 0>;
+		nvmem-cell-names = "mac-address";
 	};
 
 	mdio: mdio-bus {
@@ -122,14 +185,16 @@
 	};
 };
 
-&hnat {
-	mtketh-wan = "eth1";
-	mtketh-lan = "lan";
-	mtketh-max-gmac = <2>;
-	status = "okay";
-};
-
 &mdio {
+	phy6: phy@6 {
+		compatible = "ethernet-phy-ieee802.3-c45";
+		reg = <6>;
+		reset-gpios = <&pio 6 GPIO_ACTIVE_LOW>;
+		reset-assert-us = <15000>;
+		reset-deassert-us = <68000>;
+		realtek,aldps-enable;
+	};
+
 	switch: switch@1f {
 		compatible = "mediatek,mt7531";
 		reg = <31>;
@@ -137,10 +202,46 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		interrupt-parent = <&pio>;
-		interrupts = <66 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <66 4>;
 	};
 };
 
+&switch {
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			label = "lan1";
+		};
+		port@2 {
+			reg = <2>;
+			label = "lan2";
+		};
+		port@3 {
+			reg = <3>;
+			label = "lan3";
+		};
+		port@4 {
+			reg = <4>;
+			label = "lan4";
+		};
+		port@6 {
+			reg = <6>;
+			ethernet = <&gmac0>;
+			phy-mode = "2500base-x";
+
+			fixed-link {
+				speed = <2500>;
+				full-duplex;
+				pause;
+			};
+		};
+	};
+};
+
+/* EMMC / Factory分区 + MAC/EEPROM */
 &mmc0 {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -157,12 +258,48 @@
 	vmmc-supply = <&reg_3p3v>;
 	vqmmc-supply = <&reg_1p8v>;
 	status = "okay";
+
+	card@0 {
+		compatible = "mmc-card";
+		reg = <0>;
+
+		block {
+			compatible = "block-device";
+
+			partitions {
+				block-partition-factory {
+					partname = "factory";
+
+					nvmem-layout {
+						compatible = "fixed-layout";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						eeprom_factory_0: eeprom@0 {
+							reg = <0x0 0x1000>;
+						};
+						macaddr_factory_24: macaddr@24 {
+							compatible = "mac-base";
+							reg = <0x24 0x6>;
+							#nvmem-cell-cells = <1>;
+						};
+						macaddr_factory_2a: macaddr@2a {
+							compatible = "mac-base";
+							reg = <0x2a 0x6>;
+							#nvmem-cell-cells = <1>;
+						};
+					};
+				};
+			};
+		};
+	};
 };
 
+/* 引脚定义：EMMC + WiFi */
 &pio {
 	mmc0_pins_default: mmc0-pins-default {
 		mux {
-			function = "flash";
+			function = "emmc";
 			groups = "emmc_51";
 		};
 		conf-cmd-dat {
@@ -170,12 +307,12 @@
 			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
 			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			mediatek,pull-up-adv = <1>;
 		};
 		conf-clk {
 			pins = "EMMC_CK";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			mediatek,pull-down-adv = <2>;
 		};
 		conf-ds {
@@ -184,14 +321,14 @@
 		};
 		conf-rst {
 			pins = "EMMC_RSTB";
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			mediatek,pull-up-adv = <1>;
 		};
 	};
 
 	mmc0_pins_uhs: mmc0-uhs-pins {
 		mux {
-			function = "flash";
+			function = "emmc";
 			groups = "emmc_51";
 		};
 		conf-cmd-dat {
@@ -199,12 +336,12 @@
 			       "EMMC_DATA_3", "EMMC_DATA_4", "EMMC_DATA_5",
 			       "EMMC_DATA_6", "EMMC_DATA_7", "EMMC_CMD";
 			input-enable;
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			mediatek,pull-up-adv = <1>;
 		};
 		conf-clk {
 			pins = "EMMC_CK";
-			drive-strength = <MTK_DRIVE_6mA>;
+			drive-strength = <6>;
 			mediatek,pull-down-adv = <2>;
 		};
 		conf-ds {
@@ -213,7 +350,7 @@
 		};
 		conf-rst {
 			pins = "EMMC_RSTB";
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 			mediatek,pull-up-adv = <1>;
 		};
 	};
@@ -231,60 +368,15 @@
 			       "WF1_HB2", "WF1_HB3", "WF1_HB4", "WF1_HB0",
 			       "WF1_HB5", "WF1_HB6", "WF1_HB7", "WF1_HB8",
 			       "WF1_TOP_CLK", "WF1_TOP_DATA";
-			drive-strength = <MTK_DRIVE_4mA>;
+			drive-strength = <4>;
 		};
 	};
 };
 
-&switch {
-	ports {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		port@1 {
-			reg = <1>;
-			label = "lan1";
-		};
-
-		port@2 {
-			reg = <2>;
-			label = "lan2";
-		};
-
-		port@3 {
-			reg = <3>;
-			label = "lan3";
-		};
-
-		port@4 {
-			reg = <4>;
-			label = "lan4";
-		};
-
-		port@6 {
-			reg = <6>;
-			label = "cpu";
-			ethernet = <&gmac0>;
-			phy-mode = "2500base-x";
-
-			fixed-link {
-				speed = <2500>;
-				full-duplex;
-				pause;
-			};
-		};
-	};
-};
-
-&uart0 {
-	status = "okay";
-};
-
-&watchdog {
-	status = "okay";
-};
-
-&wbsys {
+/* 无线WiFi */
+&wifi {
+	nvmem-cells = <&eeprom_factory_0>;
+	nvmem-cell-names = "eeprom";
 	pinctrl-names = "default";
 	pinctrl-0 = <&wf_2g_5g_pins>;
 	status = "okay";
