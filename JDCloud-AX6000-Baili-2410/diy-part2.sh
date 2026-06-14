@@ -20,12 +20,12 @@ REPO_DTS="./jdcloud-re-cp-03.dts"
 SRC_DTS="target/linux/mediatek/filogic/dts/jdcloud-re-cp-03.dts"
 
 if [ -f "$REPO_DTS" ]; then
-    echo "  Found custom DTS in repo root: $REPO_DTS"
-    mkdir -p target/linux/mediatek/dts/
+    echo "  Found custom DTS: $REPO_DTS"
+    mkdir -p target/linux/mediatek/filogic/dts/
     cp -f "$REPO_DTS" "$SRC_DTS"
-    echo "  Copied custom DTS to: $SRC_DTS"
+    echo "  Copied to: $SRC_DTS"
 else
-    echo "  ERROR: Custom DTS file not found at $REPO_DTS"
+    echo "  ERROR: DTS file missing!"
     exit 1
 fi
 
