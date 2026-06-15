@@ -8,31 +8,23 @@
 # File name: diy-part2.sh
 # Description: OpenWrt DIY script part 2 (After Update feeds)
 # DIY PART2：feeds 拉取后的自定义操作，适配 ImmortalWrt 24.10 / 内核 6.6
-# 适配设备：京东云百里 AX6000 (RE-CP-03) | 使用仓库根目录的自定义DTS
+# 适配设备：京东云百里 AX6000 (RE-CP-03)
+#
+# 重要：此脚本在 feeds 更新后运行，主要任务是：
+# 1. 下载 OpenClash Meta 内核
+# 2. 设置 CPU 频率为 2.0GHz
+# 3. 修改默认 WiFi SSID
+# 4. 固件版本标识
+# 5. 禁用 automount 和 ntfs3-mount（用户要求不编译 USB 自动挂载）
+# 6. 在 .config 中确认关键包状态
+#
+# 注意：不使用自定义 DTS 注入，因为 padavanonly/immortalwrt-mt798x-24.10
+# 源码中已经包含完整且正确的 mt7986a-jdcloud-re-cp-03.dts
 
 echo "=== diy-part2.sh start ==="
 
-# ============ 新增：注入自定义DTS文件（核心） ============
-echo "=== Step 2: Inject custom DTS from repo root ==="
-
-# 定义路径
-REPO_DTS="./jdcloud-re-cp-03.dts"
-SRC_DTS="target/linux/mediatek/filogic/dts/jdcloud-re-cp-03.dts"
-
-if [ -f "$REPO_DTS" ]; then
-    echo "  Found custom DTS: $REPO_DTS"
-    mkdir -p target/linux/mediatek/filogic/dts/
-    cp -f "$REPO_DTS" "$SRC_DTS"
-    echo "  Copied to: $SRC_DTS"
-else
-    echo "  ERROR: DTS file missing!"
-    exit 1
-fi
-
-echo "=== Step 2 completed: Custom DTS injected ==="
-
-# ============ 3. OpenClash Meta 内核下载（arm64 适配 MT7986） ============
-echo "=== Step 3: Downloading OpenClash Meta core for arm64 ==="
+# ============ 1. OpenClash Meta 内核下载（arm64 适配 MT7986） ============
+echo "=== Step 1: Downloading OpenClash Meta core for arm64 ==="
 
 mkdir -p /tmp/clash_download
 curl -sL -m 30 --retry 2 --retry-delay 5 \
@@ -50,10 +42,10 @@ if [ -s /tmp/clash_download/clash-linux-arm64.tar.gz ]; then
 fi
 rm -rf /tmp/clash_download
 
-echo "=== Step 3 completed: OpenClash Meta core ready ==="
+echo "=== Step 1 completed: OpenClash Meta core ready ==="
 
-# ============ 4. MT7986A CPU 频率设置为 2.0GHz ============
-echo "=== Step 4: Setting CPU frequency to 2.0GHz ==="
+# ============ 2. MT7986A CPU 频率设置为 2.0GHz ============
+echo "=== Step 2: Setting CPU frequency to 2.0GHz ==="
 
 CPUINFO_PATHS=(
     "package/emortal/autocore/files/generic/cpuinfo"
@@ -63,20 +55,21 @@ CPUINFO_PATHS=(
 
 for cpuinfo_path in "${CPUINFO_PATHS[@]}"; do
     if [ -f "$cpuinfo_path" ]; then
+        # 使用 sed 替换 mediatekm 频率为 2.0GHz
         sed -i '/"mediatek"\/\*|\"mvebu"\/\*/{n; s/.*/\tcpu_freq="2.0GHz" ;;/}' "$cpuinfo_path"
         echo "  Set CPU frequency in: $cpuinfo_path"
     fi
 done
 
-echo "=== Step 4 completed: CPU frequency set to 2.0GHz ==="
+echo "=== Step 2 completed: CPU frequency set to 2.0GHz ==="
 
-# ============ 5. 修改默认 WiFi 名称（SSID） ============
-echo "=== Step 5: Configuring default WiFi settings ==="
+# ============ 3. 修改默认 WiFi 名称（SSID） ============
+echo "=== Step 3: Configuring default WiFi settings ==="
 
 MTWIFI_SEARCH_PATHS=(
     "package/mtk/applications/mtwifi-cfg/files/mtwifi.sh"
     "feeds/luci/applications/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
-    "package/feeds/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
+    "package/feeds/luci/luci-app-mtwifi-cfg/root/etc/init.d/mtwifi.sh"
 )
 
 MTWIFI_SH_PATH=""
@@ -89,15 +82,16 @@ done
 
 if [ -n "$MTWIFI_SH_PATH" ] && [ -f "$MTWIFI_SH_PATH" ]; then
     echo "  Found mtwifi.sh at: $MTWIFI_SH_PATH"
+    # 修改默认 SSID 名称（2.4G 和 5G）
     sed -i 's/ImmortalWrt-2\.4G/Baili-2.4G/g' "$MTWIFI_SH_PATH"
     sed -i 's/ImmortalWrt-5G/Baili-5G/g' "$MTWIFI_SH_PATH"
     echo "  Default WiFi SSID modified to: Baili-2.4G / Baili-5G"
 fi
 
-echo "=== Step 5 completed: WiFi SSID configured ==="
+echo "=== Step 3 completed: WiFi SSID configured ==="
 
-# ============ 6. 固件版本标识 ============
-echo "=== Step 6: Setting firmware version banner ==="
+# ============ 4. 固件版本标识 ============
+echo "=== Step 4: Setting firmware version banner ==="
 
 if [ -f "package/base-files/files/etc/banner" ]; then
     echo "" >> package/base-files/files/etc/banner
@@ -106,20 +100,26 @@ if [ -f "package/base-files/files/etc/banner" ]; then
     echo "  Banner updated"
 fi
 
-echo "=== Step 6 completed ==="
+echo "=== Step 4 completed ==="
 
-# ============ 7. 禁用 automount 和 ntfs3-mount ============
-echo "=== Step 7: Disabling automount and ntfs3-mount ==="
+# ============ 5. 禁用 automount 和 ntfs3-mount ============
+# 用户要求不编译任何 USB 自动挂载相关包
 
+echo "=== Step 5: Disabling automount and ntfs3-mount ==="
+
+# 5.1 从 .config 中禁用 automount 和 ntfs3-mount
 sed -i '/^CONFIG_PACKAGE_automount=/d' .config 2>/dev/null || true
 sed -i '/^CONFIG_PACKAGE_ntfs3-mount=/d' .config 2>/dev/null || true
 echo "# CONFIG_PACKAGE_automount is not set" >> .config
 echo "# CONFIG_PACKAGE_ntfs3-mount is not set" >> .config
 
+# 5.2 物理删除 package/emortal/automount（如果存在）
 if [ -d "package/emortal/automount" ]; then
     echo "  Removing package/emortal/automount..."
     rm -rf package/emortal/automount
 fi
+
+# 5.3 物理删除 feeds 中的 automount 和 ntfs3-mount
 if [ -d "feeds/packages/utils/automount" ]; then
     echo "  Removing feeds/packages/utils/automount..."
     rm -rf feeds/packages/utils/automount
@@ -129,10 +129,15 @@ if [ -d "feeds/packages/utils/ntfs3-mount" ]; then
     rm -rf feeds/packages/utils/ntfs3-mount
 fi
 
-echo "=== Step 7 completed ==="
+# 5.4 确认 ntfs-3g 不会被禁用（luci-app-diskman 需要它）
+# 不需要操作，ntfs-3g 由 luci-app-diskman 的依赖自动拉入
 
-# ============ 8. 确认关键包状态 ============
-echo "=== Step 8: Verifying essential packages ==="
+echo "=== Step 5 completed ==="
+
+# ============ 6. 确认关键包状态 ============
+# 注意：SmartDNS 递归依赖已修复（只编译 smartdns + luci-app-smartdns，不编译 smartdns-ui）
+
+echo "=== Step 6: Verifying essential packages ==="
 
 ESSENTIAL_PACKAGES=(
     "luci-app-mtwifi-cfg"
@@ -162,5 +167,6 @@ for pkg in "${ESSENTIAL_PACKAGES[@]}"; do
     fi
 done
 
-echo "=== Step 8 completed ==="
+echo "=== Step 6 completed ==="
 echo "=== diy-part2.sh all done! Ready to compile. ==="
+ 
