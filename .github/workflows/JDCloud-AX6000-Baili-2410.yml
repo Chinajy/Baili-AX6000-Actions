@@ -27,10 +27,10 @@ env:
   OPENWRT_NAME: immortalwrt
   REPO_URL: https://github.com/padavanonly/immortalwrt-mt798x-6.6
   REPO_BRANCH: openwrt-24.10-6.6
-  FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config
-  DIY_P1_SH: diy-part1.sh
-  DIY_P2_SH: diy-part2.sh
+  FEEDS_CONF: JDCloud-AX6000-Baili-2410/feeds.conf.default
+  CONFIG_FILE: JDCloud-AX6000-Baili-2410/.config
+  DIY_P1_SH: JDCloud-AX6000-Baili-2410/diy-part1.sh
+  DIY_P2_SH: JDCloud-AX6000-Baili-2410/diy-part2.sh
   SSH_ACTIONS: false
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
@@ -80,7 +80,7 @@ jobs:
     - name: Load feeds.conf.default & DIY_P1_SH
       run: |
         [ -e $FEEDS_CONF ] && mv $FEEDS_CONF openwrt/feeds.conf.default
-        chmod +x $DIY_P1_SH
+        chmod +x $GITHUB_WORKSPACE/$DIY_P1_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P1_SH
 
@@ -93,7 +93,7 @@ jobs:
     - name: Load config & DIY_P2_SH
       run: |
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
-        chmod +x $DIY_P2_SH
+        chmod +x $GITHUB_WORKSPACE/$DIY_P2_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_P2_SH
 
